@@ -4,6 +4,7 @@
 .DS_Store
 *.db
 sample_project/repos/*
+zcash/repos/*
 override
 build
 dist
