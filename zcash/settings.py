@@ -27,6 +27,8 @@ ALLOWED_HOSTS = '*'
 
 TIME_ZONE = 'America/Chicago'
 
+USE_TZ = True
+
 LANGUAGE_CODE = 'en-us'
 
 SITE_ID = 1
