@@ -2,7 +2,7 @@
 # Django settings for a Codespeed project.
 import os
 
-DEBUG = True
+DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
@@ -23,6 +23,8 @@ DATABASES = {
     }
 }
 
+ALLOWED_HOSTS = '*'
+
 TIME_ZONE = 'America/Chicago'
 
 LANGUAGE_CODE = 'en-us'
@@ -37,7 +39,8 @@ MEDIA_URL = '/media/'
 
 ADMIN_MEDIA_PREFIX = '/static/admin/'
 
-SECRET_KEY = 'as%n_m#)^vee2pe91^^@c))sl7^c6t-9r8n)_69%)2yt+(la2&'
+# XXX Set SECRET_KEY in local_settings.py
+#SECRET_KEY = 'as%n_m#)^vee2pe91^^@c))sl7^c6t-9r8n)_69%)2yt+(la2&'
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.Loader',
@@ -62,7 +65,7 @@ if DEBUG:
             logging.error("Unhandled Exception on request for %s\n%s",
                           request.build_absolute_uri(), traceback.format_exc())
     # And add it to the middleware classes
-    MIDDLEWARE_CLASSES += ('sample_project.settings.LogUncatchedErrors',)
+    MIDDLEWARE_CLASSES += ('zcash.settings.LogUncatchedErrors',)
 
     # set shown level of logging output to debug
     logging.basicConfig(level=logging.DEBUG)
@@ -100,3 +103,11 @@ STATICFILES_DIRS = (
 
 # Codespeed settings that can be overwritten here.
 from codespeed.settings import *
+
+WEBSITE_NAME = 'Zcash Speed Center'
+
+DEF_ENVIRONMENT = 'builder-0'
+
+DEF_BRANCH = 'zc.v0.11.2.latest'
+
+from .local_settings import *

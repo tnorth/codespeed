@@ -9,4 +9,5 @@ override
 build
 dist
 codespeed.egg-info/
+local_settings.py
 
