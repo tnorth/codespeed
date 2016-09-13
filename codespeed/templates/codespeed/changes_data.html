@@ -19,6 +19,7 @@
   <tr class="date"><th class="infofirst">Date</td><td>{{ rev.date }}</td></tr>
   {% ifnotequal rev.branch.project.repo_type "N" %}
     <tr class="repo-path"><th class="infofirst">Repo</th><td>{{ rev.branch.project.repo_path }}</td></tr>
+    <tr class="branch"><th class="infofirst">Branch</th><td>{{ rev.branch.name }}</td></tr>
   {% endifnotequal %}
 </tbody>
 </table>
