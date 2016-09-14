@@ -110,6 +110,6 @@ WEBSITE_NAME = 'Zcash Speed Center'
 
 DEF_ENVIRONMENT = 'builder-0'
 
-DEF_BRANCH = 'zc.v0.11.2.latest'
+DEF_BRANCH = 'master'
 
 from .local_settings import *
