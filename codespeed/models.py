@@ -146,6 +146,10 @@ class Benchmark(models.Model):
         ('C', 'Cross-project'),
         ('O', 'Own-project'),
     )
+    D_TYPES = (
+        ('U', 'Mean'),
+        ('M', 'Median'),
+    )
 
     name = models.CharField(unique=True, max_length=100)
     parent = models.ForeignKey(
@@ -153,6 +157,7 @@ class Benchmark(models.Model):
         help_text="allows to group benchmarks in hierarchies",
         null=True, blank=True, default=None)
     benchmark_type = models.CharField(max_length=1, choices=B_TYPES, default='C')
+    data_type = models.CharField(max_length=1, choices=D_TYPES, default='U')
     description = models.CharField(max_length=300, blank=True)
     units_title = models.CharField(max_length=30, default='Time')
     units = models.CharField(max_length=20, default='seconds')
@@ -188,6 +193,8 @@ class Result(models.Model):
     std_dev = models.FloatField(blank=True, null=True)
     val_min = models.FloatField(blank=True, null=True)
     val_max = models.FloatField(blank=True, null=True)
+    q1 = models.FloatField(blank=True, null=True)
+    q3 = models.FloatField(blank=True, null=True)
     date = models.DateTimeField(blank=True, null=True)
     revision = models.ForeignKey(Revision, related_name="results")
     executable = models.ForeignKey(Executable, related_name="results")
@@ -322,8 +329,8 @@ class Report(models.Model):
 
         super(Report, self).save(*args, **kwargs)
 
-    def updown(self,val):
-        #Substitute plus/minus with up/down
+    def updown(self, val):
+        """Substitutes plus/minus with up/down"""
         direction = val >= 0 and "up" or "down"
         aval = abs(val)
         if aval == float("inf"):
@@ -336,8 +343,8 @@ class Report(models.Model):
             return True
         elif color == "red" and abs(val) > abs(current_val):
             return True
-        elif (color == "green" and current_color != "red"
-              and abs(val) > abs(current_val)):
+        elif (color == "green" and current_color != "red" and
+                abs(val) > abs(current_val)):
             return True
         else:
             return False
@@ -395,7 +402,8 @@ class Report(models.Model):
         )
 
         tablelist = []
-        for units_title in Benchmark.objects.all().values_list('units_title', flat=True).distinct():
+        for units_title in Benchmark.objects.all().values_list(
+                'units_title', flat=True).distinct():
             currentlist = []
             units = ""
             hasmin = False
@@ -543,4 +551,3 @@ class Report(models.Model):
         if self._tablecache == '':
             return {}
         return json.loads(self._tablecache)
-

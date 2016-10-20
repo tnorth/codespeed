@@ -24,12 +24,22 @@ function getColor(exe_id) {
                           .data('color');
 }
 
+function scaleColorAlpha(color, scale) {
+  var c = $.jqplot.getColorComponents(color);
+  c[3] = c[3] * scale;
+  return 'rgba(' + c[0] +', '+ c[1] +', '+ c[2] +', '+ c[3] + ')';
+}
+
 function shouldPlotEquidistant() {
   return $("#equidistant").is(':checked');
 }
 
 function shouldPlotErrorBars() {
   return $("#show_error_bars").is(':checked');
+}
+
+function shouldPlotExtrema() {
+  return $("#show_extrema_bands").is(':checked');
 }
 
 function getConfiguration() {
@@ -41,6 +51,8 @@ function getConfiguration() {
     revs: $("#revisions option:selected").val(),
     equid: $("#equidistant").is(':checked') ? "on" : "off",
     error: $("#show_error_bars").is(':checked') ? "on" : "off"
+    quarts: $("#show_quartile_bands").is(':checked') ? "on" : "off",
+    extr: $("#show_extrema_bands").is(':checked') ? "on" : "off"
   };
 
   var branch = readCheckbox("input[name='branch']:checked");
@@ -58,11 +70,29 @@ function permalinkToChanges(commitid, executableid, environment) {
 function OnMarkerClickHandler(ev, gridpos, datapos, neighbor, plot) {
   if($("input[name='benchmark']:checked").val() === "grid") { return false; }
   if (neighbor) {
-    var commitid = neighbor.data[3];
+    var commitid = neighbor.data[neighbor.data.length-2];
     // Get executable ID from the seriesindex array
     var executableid = seriesindex[neighbor.seriesIndex];
     var environment = $("input[name='environments']:checked").val();
     permalinkToChanges(commitid, executableid, environment);
+  }
+}
+
+function getHighlighterConfig(median) {
+  if (median) {
+    return {
+      show: true,
+      tooltipLocation: 'nw',
+      yvalues: 7,
+      formatString:'<table class="jqplot-highlighter">    <tr><td>date:</td><td>%s</td></tr> <tr><td>median:</td><td>%s</td></tr> <tr><td>max:</td><td>%s</td></tr> <tr><td>Q3:</td><td>%s</td></tr> <tr><td>Q1:</td><td>%s</td></tr> <tr><td>min:</td><td>%s</td></tr> <tr><td>commit:</td><td>%s</td></tr></table>'
+    };
+  } else {
+    return {
+      show: true,
+      tooltipLocation: 'nw',
+      yvalues: 4,
+      formatString:'<table class="jqplot-highlighter">    <tr><td>date:</td><td>%s</td></tr> <tr><td>result:</td><td>%s</td></tr> <tr><td>std dev:</td><td>%s</td></tr> <tr><td>commit:</td><td>%s</td></tr></table>'
+    };
   }
 }
 
@@ -74,6 +104,8 @@ function renderPlot(data) {
       lastvalues = [];//hopefully the smallest values for determining significant digits.
   seriesindex = [];
   var errorSeries = 0;
+  var hiddenSeries = 0;
+  var median = data['data_type'] === 'M';
   for (var branch in data.branches) {
     // NOTE: Currently, only the "default" branch is shown in the timeline
     for (var exe_id in data.branches[branch]) {
@@ -93,7 +125,51 @@ function renderPlot(data) {
       }
       // FIXME if (branch !== "default") { label += " - " + branch; }
       var label = $("label[for*='executable" + exe_id + "']").html();
-      series.push({"label":  label, "color": getColor(exe_id)});
+      var seriesConfig = {
+        label: label,
+        color: getColor(exe_id)
+      };
+      if (median) {
+        $("span.options.median").css("display", "inline");
+        var mins = new Array();
+        var maxes = new Array();
+        var q1s = new Array();
+        var q3s = new Array();
+        for (res in data["branches"][branch][exe_id]) {
+          var date = data["branches"][branch][exe_id][res][0];
+          var value = data["branches"][branch][exe_id][res][1];
+          var max = data["branches"][branch][exe_id][res][2];
+          var q3 = data["branches"][branch][exe_id][res][3];
+          var q1 = data["branches"][branch][exe_id][res][4];
+          var min = data["branches"][branch][exe_id][res][5];
+          if (min !== "")
+            mins.push([date, min]);
+          if (max !== "")
+            maxes.push([date, max]);
+          if (q1 !== "")
+            q1s.push([date, q1]);
+          if (q3 !== "")
+            q3s.push([date, q3]);
+        }
+        var extrema = new Array(mins, maxes);
+        var quartiles = new Array(q1s, q3s);
+        if (shouldPlotQuartiles()) {
+          seriesConfig['rendererOptions'] = {bandData: quartiles};
+        } else if (shouldPlotExtrema()) {
+          seriesConfig['rendererOptions'] = {bandData: extrema};
+        }
+        if (shouldPlotQuartiles() && shouldPlotExtrema()) {
+          series.push({
+            showLabel: false,
+            showMarker: false,
+            color: scaleColorAlpha(getColor(exe_id), 0.6),
+            rendererOptions: {bandData: extrema}
+          });
+          plotdata.push(data.branches[branch][exe_id]);
+          hiddenSeries++;
+        }
+      }
+      series.push(seriesConfig);
       seriesindex.push(exe_id);
       var exeData = data.branches[branch][exe_id];
       plotdata.push(exeData);
@@ -130,34 +206,36 @@ function renderPlot(data) {
   }
   var plotoptions = {
     title: {text: data.benchmark, fontSize: '1.1em'},
+    grid: {borderColor: '#9DADC6', shadow: false, drawBorder: true},
     series: series,
+    axesDefaults: {
+      tickOptions: {
+        fontFamily: 'Arial'
+      }
+    },
     axes:{
       yaxis:{
         label: data.units + data.lessisbetter,
         labelRenderer: $.jqplot.CanvasAxisLabelRenderer,
-        min: 0, autoscale:true,
-        tickOptions:{formatString:'%.' + digits + 'f'}
+        min: 0,
+        autoscale: true,
+        tickOptions: {formatString:'%.' + digits + 'f'}
       },
       xaxis:{
         renderer: (shouldPlotEquidistant()) ? $.jqplot.CategoryAxisRenderer : $.jqplot.DateAxisRenderer,
         label: 'Commit date',
         labelRenderer: $.jqplot.CanvasAxisLabelRenderer,
-        tickOptions:{formatString:'%b %d'},
+        tickOptions: {formatString:'%b %d'},
         pad: 1.01,
         min: Math.min.apply(Math, firstdates),
         max: Math.max.apply(Math, lastdates),
-        rendererOptions:{sortMergedLabels:true} /* only relevant when
-                                $.jqplot.CategoryAxisRenderer is used */ 
+        rendererOptions: {sortMergedLabels:true} /* only relevant when
+                                $.jqplot.CategoryAxisRenderer is used */
       }
     },
     legend: {show: true, location: 'nw'},
-    highlighter: {
-      show: true,
-      tooltipLocation: 'nw',
-      yvalues: 4,
-      formatString:'<table class="jqplot-highlighter">    <tr><td>date:</td><td>%s</td></tr> <tr><td>result:</td><td>%s</td></tr> <tr><td>std dev:</td><td>%s</td></tr> <tr><td>commit:</td><td>%s</td></tr></table>'
-    },
-    cursor:{show:true, zoom:true, showTooltip:false, clickReset:true}
+    highlighter: getHighlighterConfig(median),
+    cursor: {show:true, zoom:true, showTooltip:false, clickReset:true}
   };
   if (series.length > 4 + errorSeries) {
       // Move legend outside plot area to unclutter
@@ -210,7 +288,12 @@ function renderMiniplot(plotid, data) {
 
   var plotoptions = {
     title: {text: data.benchmark, fontSize: '1.1em'},
-    seriesDefaults: {lineWidth: 2, markerOptions:{style:'circle', size: 6}},
+    grid: {borderColor: '#9DADC6', shadow: false, drawBorder: true},
+    seriesDefaults: {
+      shadow: false,
+      lineWidth: 2,
+      markerOptions: {style:'circle', size: 6}
+    },
     series: series,
     axes: {
       yaxis: {
@@ -236,17 +319,18 @@ function render(data) {
   $("#revisions").attr("disabled", false);
   $("#equidistant").attr("disabled", false);
   $("#show_error_bars").attr("disabled", false);
+  $("span.options.median").css("display", "none");
   $("#plotgrid").html("");
   if(data.error !== "None") {
     var h = $("#content").height();//get height for error message
-    $("#plotgrid").html(getLoadText(data.error, h, false));
+    $("#plotgrid").html(getLoadText(data.error, h));
     return 1;
   } else if ($("input[name='benchmark']:checked").val() === "show_none") {
     var h = $("#content").height();//get height for error message
-    $("#plotgrid").html(getLoadText("Please select a benchmark on the left", h, false));
+    $("#plotgrid").html(getLoadText("Please select a benchmark on the left", h));
   } else if (data.timelines.length === 0) {
     var h = $("#content").height();//get height for error message
-    $("#plotgrid").html(getLoadText("No data available", h, false));
+    $("#plotgrid").html(getLoadText("No data available", h));
   } else if ($("input[name='benchmark']:checked").val() === "grid"){
     //Render Grid of plots
     $("#revisions").attr("disabled",true);
@@ -272,7 +356,7 @@ function render(data) {
 function refreshContent() {
   var h = $("#content").height();//get height for loading text
   $("#plotgrid").fadeOut("fast", function() {
-    $("#plotgrid").html(getLoadText("Loading...", h, true)).show();
+    $("#plotgrid").html(getLoadText("Loading...", h)).show();
     $.getJSON("json/", getConfiguration(), render);
   });
 }
@@ -299,6 +383,8 @@ function initializeSite(event) {
   $("input[name='environments']").change(updateUrl);
   $("#equidistant"              ).change(updateUrl);
   $("#show_error_bars"          ).change(updateUrl);
+  $("#show_quartile_bands"      ).change(updateUrl);
+  $("#show_extrema_bands"       ).change(updateUrl);
 }
 
 function refreshSite(event) {
@@ -353,6 +439,8 @@ function setValuesOfInputFields(event) {
   $("#baselinecolor").css("background-color", baselineColor);
   $("#equidistant").prop('checked', valueOrDefault(event.parameters.equid, defaults.equidistant) === "on");
   $("#show_error_bars").prop('checked', valueOrDefault(event.parameters.error, defaults.error) === "on");
+  $("#show_quartile_bands").prop('checked', valueOrDefault(event.parameters.quarts, defaults.quartiles) === "on");
+  $("#show_extrema_bands").prop('checked', valueOrDefault(event.parameters.extr, defaults.extrema) === "on");
 }
 
 function init(def) {

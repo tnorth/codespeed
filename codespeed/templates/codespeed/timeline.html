@@ -89,6 +89,11 @@
     <label for="show_error_bars">Show error bars</label>
   </span>
   {% endif %}
+  {% if use_median_bands %}
+    <input id="show_extrema_bands" type="checkbox" name="show_extrema_bands" checked="checked"/>
+    <label for="show_extrema_bands">Show extrema bands</label>
+  </span>
+  {% endif %}
   <a id="permalink" href="#">Permalink</a>
 </div>
 <div id="content" class="clearfix">
@@ -123,7 +128,9 @@
       benchmark: "{{ defaultbenchmark }}",
       environment: {{ defaultenvironment.id }},
       equidistant: "{{ defaultequid }}",
-      error: "on"
+      error: "on",
+      quartiles: "{{ defaultquarts }}",
+      extrema: "{{ defaultextr }}"
     });
   });
 </script>
