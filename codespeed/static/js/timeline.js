@@ -34,6 +34,9 @@ function shouldPlotEquidistant() {
   return $("#equidistant").is(':checked');
 }
 
+function shouldPlotQuartiles() {
+   return $("#show_quartile_bands").is(':checked');
+}
 function shouldPlotErrorBars() {
   return $("#show_error_bars").is(':checked');
 }
@@ -50,7 +53,7 @@ function getConfiguration() {
     env: $("input[name='environments']:checked").val(),
     revs: $("#revisions option:selected").val(),
     equid: $("#equidistant").is(':checked') ? "on" : "off",
-    error: $("#show_error_bars").is(':checked') ? "on" : "off"
+    error: $("#show_error_bars").is(':checked') ? "on" : "off",
     quarts: $("#show_quartile_bands").is(':checked') ? "on" : "off",
     extr: $("#show_extrema_bands").is(':checked') ? "on" : "off"
   };
